@@ -1,0 +1,19 @@
+[project]
+name = "golden-butterfly-updater"
+version = "0.1.0"
+description = "A Telegram bot for updating a Golden Butterfly sheet with the current values in your different accounts and exchanges."
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "loguru>=0.7.3",
+    "pyvirtualdisplay>=3.0",
+    "pyyaml>=6.0.2",
+    "telethon>=1.40.0",
+    "zendriver>=0.6.1",
+]
+
+[dependency-groups]
+dev = [
+    "pre-commit>=4.5.1",
+    "ruff>=0.14.10",
+]
