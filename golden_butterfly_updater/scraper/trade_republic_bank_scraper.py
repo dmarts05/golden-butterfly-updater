@@ -36,13 +36,13 @@ class TradeRepublicBankScraper(BankScraper):
             logger.info("Logged in successfully")
 
             logger.info("Retrieving cash balance...")
-            cash_amount = 0.0  # TODO
-            logger.info(f"Cash balance retrieved: {cash_amount}€")
+            cash_balance = await self._get_cash_balance()
+            logger.info(f"Cash balance retrieved: {cash_balance}€")
 
             return [
                 Asset(
                     name="Trade Republic Cash",
-                    amount=cash_amount,
+                    amount=cash_balance,
                     asset_type=AssetType.CASH,
                 )
             ]
@@ -174,3 +174,20 @@ class TradeRepublicBankScraper(BankScraper):
             )
         except ElementNotFoundError:
             raise LoginError("Login verification failed; user may not be logged in.")
+
+    async def _get_cash_balance(self) -> float:
+        """
+        Retrieves the cash balance from the account overview.
+        :return: Cash balance as a float.
+        """
+        transactions_page = await self._browser_manager.navigate_to(
+            "https://app.traderepublic.com/profile/transactions"
+        )
+
+        cash_element = await self._browser_manager.find_element(
+            transactions_page,
+            ".cashBalance__amount",
+            "Cash balance element not found",
+        )
+        cash_amount = float(cash_element.text.replace("€", "").replace(",", "").strip())
+        return cash_amount

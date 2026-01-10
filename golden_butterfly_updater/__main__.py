@@ -47,6 +47,7 @@ async def run() -> None:
                 logger.exception(f"Error while running scraper {scraper_name}: {e}")
 
     logger.info(f"Total assets retrieved: {len(assets)}")
+    logger.debug(assets)
 
     # TODO
 
