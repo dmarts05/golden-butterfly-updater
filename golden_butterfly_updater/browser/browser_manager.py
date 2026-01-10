@@ -5,11 +5,11 @@ from loguru import logger
 from pyvirtualdisplay.display import Display
 from zendriver import Browser, Element, Tab, start
 
-from golden_butterfly_updater.browser.delays import Delays
 from golden_butterfly_updater.browser.browser_exceptions import (
     ElementNotFoundError,
     NavigationError,
 )
+from golden_butterfly_updater.browser.delays import Delays
 
 
 class BrowserManager:
@@ -19,19 +19,17 @@ class BrowserManager:
     """
 
     _delays: Delays
+    """Delays configuration."""
     _display: Display | None
+    """Virtual display instance if enabled."""
     _browser: Browser | None
+    """Browser instance."""
 
     def __init__(
         self,
         delays: Delays,
         use_virtual_display: bool,
     ) -> None:
-        """
-        Initializes the BrowserManager and starts a browser instance.
-        :param delays: Delays configuration.
-        :param use_virtual_display: Whether to use a virtual display.
-        """
         self._delays = delays
         self._display = (
             Display(visible=False, size=(1920, 1080)) if use_virtual_display else None
@@ -42,16 +40,16 @@ class BrowserManager:
         """
         Starts a virtual display if enabled and initializes the browser instance on entering a context.
         """
-        self.__start_virtual_display()
-        self._browser = await self.__start_browser()
+        self._start_virtual_display()
+        self._browser = await self._start_browser()
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
         """
         Stops the browser instance and virtual display if enabled on exiting a context.
         """
-        await self.__stop_browser()
-        self.__stop_virtual_display()
+        await self._stop_browser()
+        self._stop_virtual_display()
 
     @property
     def browser(self) -> Browser:
@@ -193,7 +191,7 @@ class BrowserManager:
         logger.debug(f"Sleeping for {delay:.2f} seconds.")
         await self.browser.sleep(delay)
 
-    def __start_virtual_display(self) -> None:
+    def _start_virtual_display(self) -> None:
         """
         Starts the virtual display if enabled.
         """
@@ -202,7 +200,7 @@ class BrowserManager:
             self._display.start()
             logger.info("Virtual display started.")
 
-    def __stop_virtual_display(self) -> None:
+    def _stop_virtual_display(self) -> None:
         """
         Stops the virtual display if enabled.
         """
@@ -211,7 +209,7 @@ class BrowserManager:
             self._display.stop()
             logger.info("Virtual display stopped.")
 
-    async def __start_browser(self) -> Browser:
+    async def _start_browser(self) -> Browser:
         """
         Starts the browser instance.
         :return: Browser instance.
@@ -225,7 +223,7 @@ class BrowserManager:
             logger.exception(f"Failed to start browser: {e}")
             raise
 
-    async def __stop_browser(self) -> None:
+    async def _stop_browser(self) -> None:
         """
         Stops the browser instance.
         """
