@@ -11,6 +11,7 @@ class BankScraper(ABC):
     """Browser manager for handling browser interactions."""
 
     def __init__(self, browser_manager: BrowserManager) -> None:
+        super().__init__()
         self._browser_manager = browser_manager
 
     @abstractmethod

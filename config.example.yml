@@ -11,3 +11,32 @@ trade_republic:
     phone_country_code: "+34"
     phone_number: "612345678"
     pin: "your_pin_here"
+
+# --- MyInvestor account configuration ---
+my_investor:
+    username: "your_dni_or_nie_here"
+    password: "your_password_here"
+
+    # List of assets to track.
+    # product_type options: "etf", "index_fund"
+    # asset_type options: "large_cap_stocks", "small_cap_stocks", "long_term_treasury", "gold"
+    assets:
+        # Example: Large Cap Stocks (Index Fund)
+        - isin: "IE00B5BMR087"
+          product_type: "index_fund"
+          asset_type: "large_cap_stocks"
+
+        # Example: Small Cap Stocks (ETF)
+        - isin: "IE00B42W3S00"
+          product_type: "etf"
+          asset_type: "small_cap_stocks"
+
+        # Example: Long Term Treasury (ETF)
+        - isin: "IE00B43DCM64"
+          product_type: "etf"
+          asset_type: "long_term_treasury"
+
+        # Example: Gold (ETC/ETF)
+        - isin: "IE00B579F325"
+          product_type: "etf"
+          asset_type: "gold"
