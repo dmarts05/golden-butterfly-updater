@@ -4,7 +4,6 @@ browser_options:
     # Headless mode requires xvfb to be installed.
     headless: true
     # Delay profile. Choose between fast, medium, and slow.
-    # Faster profiles may fail with slow internet connections and may trigger bot detection systems.
     delay_profile: "fast"
 
 # --- Trade Republic account configuration ---

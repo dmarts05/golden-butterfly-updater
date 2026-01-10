@@ -23,20 +23,20 @@ class DelayProfile(str, Enum):
     Inherits from str to handle YAML string matching automatically.
     """
 
-    FAST = "FAST"
-    MEDIUM = "MEDIUM"
-    SLOW = "SLOW"
+    FAST = "fast"
+    MEDIUM = "medium"
+    SLOW = "slow"
 
     @property
     def values(self) -> DelayValues:
         mapping = {
-            "FAST": DelayValues(
+            "fast": DelayValues(
                 navigate_delay=(2, 3), wait_timeout=4, action_delay_range=(0.5, 1.5)
             ),
-            "MEDIUM": DelayValues(
+            "medium": DelayValues(
                 navigate_delay=(4, 5), wait_timeout=8, action_delay_range=(2, 3)
             ),
-            "SLOW": DelayValues(
+            "slow": DelayValues(
                 navigate_delay=(6, 7), wait_timeout=12, action_delay_range=(3, 5)
             ),
         }

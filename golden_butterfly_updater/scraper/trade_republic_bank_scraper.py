@@ -17,25 +17,17 @@ class TradeRepublicBankScraper(BankScraper):
     """
 
     _account: TradeRepublicAccountConfig
+    """Trade Republic account configuration."""
 
     def __init__(
         self,
         browser_manager: BrowserManager,
         account: TradeRepublicAccountConfig,
     ) -> None:
-        """
-        Creates a new Trade Republic scraper.
-        :param browser_manager: Browser manager instance.
-        :param account: Trade Republic account credentials.
-        """
         super().__init__(browser_manager)
         self._account = account
 
     async def get_assets(self) -> list[Asset]:
-        """
-        Retrieve a list of assets from the bank account.
-        :return: List of assets.
-        """
         try:
             logger.info(
                 f"Logging into Trade Republic as {self._account.phone_number}..."
@@ -74,9 +66,25 @@ class TradeRepublicBankScraper(BankScraper):
             "https://app.traderepublic.com/login"
         )
 
+        await self._accept_cookies(page)
         await self._set_phone_country_code(page)
         await self._enter_phone_number(page)
         await self._press_next_button(page)
+        await self._enter_pin(page)
+        await self._enter_confirmation_code(page)
+        await self._ensure_logged_in(page)
+
+    async def _accept_cookies(self, page) -> None:
+        """
+        Accepts cookies on the login page.
+        :param page: Current browser page.
+        """
+        accept_button = await self._browser_manager.find_element(
+            page,
+            "button.consentCard__action",
+            "Cookie accept button not found",
+        )
+        await self._browser_manager.click_element(accept_button)
 
     async def _set_phone_country_code(self, page) -> None:
         """
@@ -92,8 +100,8 @@ class TradeRepublicBankScraper(BankScraper):
 
         country_option = await self._browser_manager.find_element(
             page,
-            f"#areaCode-{self._account.phone_country_code}",
-            "Country option for Germany not found",
+            f'[id="areaCode-{self._account.phone_country_code}"]',
+            f"Country option for {self._account.phone_country_code} not found",
         )
         await self._browser_manager.click_element(country_option)
 
@@ -123,15 +131,46 @@ class TradeRepublicBankScraper(BankScraper):
         )
         await self._browser_manager.click_element(next_button)
 
-    async def _enter_password(self, page) -> None:
+    async def _enter_pin(self, page) -> None:
         """
-        Enters the password in the login form.
-        Since password is a 4 code pin, we need to enter each digit separately in its own input field.
+        Enters the PIN in the login form.
+        Since the PIN is a 4-digit code, we need to enter each digit separately in its own input field.
         :param page: Current browser page.
         """
-        pin_inputs = await self._browser_manager.find_all_elements(
-            page, ".codeInput__character", "PIN inputs not found"
-        )
-
-        for pin_input, digit in zip(pin_inputs, self._account.pin):
+        for digit in self._account.pin:
+            pin_input = await self._browser_manager.find_element(
+                page,
+                ".codeInput__character:not(.-withValue)",
+                "Next PIN input not found",
+            )
             await self._browser_manager.send_keys_to_element(pin_input, digit)
+
+    async def _enter_confirmation_code(self, page) -> None:
+        """
+        Enters the confirmation code.
+        :param page: Current browser page.
+        """
+        code = input("Enter the confirmation code: ")
+
+        for digit in code:
+            code_input = await self._browser_manager.find_element(
+                page,
+                ".codeInput__character:not(.-withValue)",
+                "Next confirmation code input not found",
+            )
+            await self._browser_manager.send_keys_to_element(code_input, digit)
+
+    async def _ensure_logged_in(self, page) -> None:
+        """
+        Ensures that the user is logged in by checking for a known post-login element.
+        :param page: Current browser page.
+        :raises LoginError: If the user is not logged in.
+        """
+        try:
+            await self._browser_manager.find_element(
+                page,
+                " #instrumentSearch__q",
+                "Login verification element not found",
+            )
+        except ElementNotFoundError:
+            raise LoginError("Login verification failed; user may not be logged in.")

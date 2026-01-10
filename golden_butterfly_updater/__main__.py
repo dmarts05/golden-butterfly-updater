@@ -27,25 +27,24 @@ async def run() -> None:
     logger.info("Configuration loaded")
 
     assets: list[Asset] = []
-
-    browser_manager = BrowserManager(
+    async with BrowserManager(
         delays=config.browser_config.delays,
         use_virtual_display=config.browser_config.headless,
-    )
-    scrapers: list[BankScraper] = [
-        TradeRepublicBankScraper(
-            browser_manager=browser_manager, account=config.trade_republic_config
-        ),
-        MyInvestorBankScraper(browser_manager=browser_manager),
-    ]
-    for scraper in scrapers:
-        scraper_name = scraper.__class__.__name__
-        logger.info(f"Running scraper: {scraper_name}")
-        try:
-            scraper_assets = await scraper.get_assets()
-            assets.extend(scraper_assets)
-        except Exception as e:
-            logger.exception(f"Error while running scraper {scraper_name}: {e}")
+    ) as browser_manager:
+        scrapers: list[BankScraper] = [
+            TradeRepublicBankScraper(
+                browser_manager=browser_manager, account=config.trade_republic_config
+            ),
+            MyInvestorBankScraper(browser_manager=browser_manager),
+        ]
+        for scraper in scrapers:
+            scraper_name = scraper.__class__.__name__
+            logger.info(f"Running scraper: {scraper_name}")
+            try:
+                scraper_assets = await scraper.get_assets()
+                assets.extend(scraper_assets)
+            except Exception as e:
+                logger.exception(f"Error while running scraper {scraper_name}: {e}")
 
     logger.info(f"Total assets retrieved: {len(assets)}")
 
