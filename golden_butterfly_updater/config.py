@@ -1,9 +1,15 @@
+import re
 from dataclasses import dataclass
 from typing import Any
 
 import yaml
 
 from golden_butterfly_updater.browser.delays import DelayProfile, Delays
+
+# Regex patterns for validation
+PHONE_COUNTRY_CODE_PATTERN = re.compile(r"^\+\d{1,4}$")
+PHONE_NUMBER_PATTERN = re.compile(r"^\d{5,15}$")
+PIN_PATTERN = re.compile(r"^\d{4}$")
 
 
 @dataclass(slots=True, frozen=True, kw_only=True)
@@ -13,7 +19,50 @@ class BrowserConfig:
     """
 
     headless: bool
-    delays: Delays
+    """Whether to run the browser in headless mode."""
+    delay_profile: DelayProfile
+    """The delay profile to use for browser interactions."""
+
+    @property
+    def delays(self) -> Delays:
+        """
+        Returns the Delays logic object based on the configured profile.
+
+        :return: Delays object.
+        """
+        return Delays(self.delay_profile)
+
+
+@dataclass(slots=True, frozen=True, kw_only=True)
+class TradeRepublicAccountConfig:
+    """
+    Holds Trade Republic account configuration.
+    """
+
+    phone_country_code: str
+    """Phone country code (e.g., +34, +49)."""
+    phone_number: str
+    """Local phone number (digits only)."""
+    pin: str
+    """Account 4-digit PIN."""
+
+    def __post_init__(self):
+        """
+        Validates the phone country code, phone number, and PIN patterns.
+        """
+        if not PHONE_COUNTRY_CODE_PATTERN.match(self.phone_country_code):
+            raise ValueError(
+                f"Invalid phone country code '{self.phone_country_code}'. "
+                "Must match pattern e.g., +34, +1."
+            )
+
+        if not PHONE_NUMBER_PATTERN.match(self.phone_number):
+            raise ValueError(
+                f"Invalid phone number '{self.phone_number}'. Must be 5-15 digits."
+            )
+
+        if not PIN_PATTERN.match(self.pin):
+            raise ValueError(f"Invalid PIN '{self.pin}'. Must be exactly 4 digits.")
 
 
 @dataclass(slots=True, frozen=True, kw_only=True)
@@ -23,14 +72,17 @@ class Config:
     """
 
     browser_config: BrowserConfig
+    """Browser configuration."""
+    trade_republic_config: TradeRepublicAccountConfig
+    """Trade Republic account configuration."""
 
 
 def _load_yaml(file_path: str) -> dict[str, Any]:
     """
     Loads a YAML file and returns its content as a dictionary.
+
     :param file_path: Path to the YAML file.
-    :raises ValueError: If the file cannot be found or parsed.
-    :return: Dictionary representation of the YAML file.
+    :return: Dictionary with the YAML content.
     """
     try:
         with open(file_path, "r") as file:
@@ -41,57 +93,64 @@ def _load_yaml(file_path: str) -> dict[str, Any]:
         raise ValueError(f"Error parsing YAML file: {e}")
 
 
-def _require_field(data: dict[str, Any], field_name: str, context: str) -> Any:
+def _get_browser_config(browser_data: dict[str, Any] | None) -> BrowserConfig:
     """
-    Ensures that a required field is present in the data dictionary.
-    :param data: Data dictionary.
-    :param field_name: Name of the required field.
-    :param context: Context for error messages.
-    :raises ValueError: If the required field is missing.
-    :return: Value of the required field.
-    """
-    if field_name not in data or data.get(field_name) is None:
-        raise ValueError(f"Missing required field '{field_name}' in {context}")
-    return data[field_name]
+    Parses and validates the browser configuration section.
 
-
-def _load_browser_config(raw_config: dict[str, Any]) -> BrowserConfig:
+    :param browser_data: Raw dictionary containing browser options.
+    :return: Validated BrowserConfig object.
     """
-    Loads browser configuration from the raw configuration dictionary.
-    :param raw_config: Raw configuration dictionary.
-    :raises ValueError: If required fields are missing or invalid.
-    :return: Browser configuration.
-    """
-    browser_options = raw_config.get("browser_options")
-    if not browser_options or not isinstance(browser_options, dict):
-        raise ValueError(
-            "Missing or invalid 'browser_options' section in configuration"
-        )
-
-    headless = _require_field(browser_options, "headless", "browser_options")
-    delay_profile_name = _require_field(
-        browser_options, "delay_profile", "browser_options"
-    ).upper()
+    if not browser_data:
+        raise ValueError("Missing 'browser_options' section in configuration.")
 
     try:
-        delay_profile = DelayProfile[delay_profile_name]
-    except KeyError:
-        raise ValueError(f"Invalid delay profile: {delay_profile_name}")
+        delay_profile_val = browser_data["delay_profile"]
+        profile = DelayProfile(delay_profile_val)
+        return BrowserConfig(
+            headless=browser_data["headless"],
+            delay_profile=profile,
+        )
+    except KeyError as e:
+        raise ValueError(f"Missing required field in 'browser_options': {e}")
+    except ValueError as e:
+        raise ValueError(f"Invalid value in 'browser_options': {e}")
 
-    delays = Delays(delay_profile)
-    return BrowserConfig(headless=headless, delays=delays)
+
+def _get_trade_republic_config(
+    tr_data: dict[str, Any] | None,
+) -> TradeRepublicAccountConfig:
+    """
+    Parses and validates the Trade Republic configuration section.
+
+    :param tr_data: Raw dictionary containing Trade Republic options.
+    :return: Validated TradeRepublicAccountConfig object.
+    """
+    if not tr_data:
+        raise ValueError("Missing 'trade_republic' section in configuration.")
+
+    try:
+        return TradeRepublicAccountConfig(
+            phone_country_code=str(tr_data["phone_country_code"]),
+            phone_number=str(tr_data["phone_number"]),
+            pin=str(tr_data["pin"]),
+        )
+    except KeyError as e:
+        raise ValueError(f"Missing required field in 'trade_republic': {e}")
+    except ValueError as e:
+        raise ValueError(f"Validation failed for 'trade_republic': {e}")
 
 
 def load_config_from_yaml(file_path: str = "config.yml") -> Config:
     """
     Loads application configuration from a YAML file.
-    :param file_path: Path to the YAML configuration file.
-    :raises ValueError: If the configuration is invalid or missing required fields.
-    :return: Application configuration.
+    Manually maps YAML keys to dataclasses and validates types.
     """
     raw_config = _load_yaml(file_path)
-    browser_config = _load_browser_config(raw_config)
+
+    browser_config = _get_browser_config(raw_config.get("browser_options"))
+    trade_republic_config = _get_trade_republic_config(raw_config.get("trade_republic"))
 
     return Config(
         browser_config=browser_config,
+        trade_republic_config=trade_republic_config,
     )

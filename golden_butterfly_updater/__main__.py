@@ -2,7 +2,16 @@ import asyncio
 
 from loguru import logger
 
+from golden_butterfly_updater.browser.browser_manager import BrowserManager
 from golden_butterfly_updater.config import load_config_from_yaml
+from golden_butterfly_updater.scraper.asset import Asset
+from golden_butterfly_updater.scraper.bank_scraper import BankScraper
+from golden_butterfly_updater.scraper.my_investor_bank_scraper import (
+    MyInvestorBankScraper,
+)
+from golden_butterfly_updater.scraper.trade_republic_bank_scraper import (
+    TradeRepublicBankScraper,
+)
 
 
 async def run() -> None:
@@ -17,9 +26,30 @@ async def run() -> None:
     logger.debug(config)
     logger.info("Configuration loaded")
 
-    logger.info("Running Golden Butterfly Updater...")
+    assets: list[Asset] = []
+    async with BrowserManager(
+        delays=config.browser_config.delays,
+        use_virtual_display=config.browser_config.headless,
+    ) as browser_manager:
+        scrapers: list[BankScraper] = [
+            TradeRepublicBankScraper(
+                browser_manager=browser_manager, account=config.trade_republic_config
+            ),
+            MyInvestorBankScraper(browser_manager=browser_manager),
+        ]
+        for scraper in scrapers:
+            scraper_name = scraper.__class__.__name__
+            logger.info(f"Running scraper: {scraper_name}")
+            try:
+                scraper_assets = await scraper.get_assets()
+                assets.extend(scraper_assets)
+            except Exception as e:
+                logger.exception(f"Error while running scraper {scraper_name}: {e}")
 
-    logger.info("Running supervisor...")
+    logger.info(f"Total assets retrieved: {len(assets)}")
+    logger.debug(assets)
+
+    # TODO
 
 
 def main() -> None:
