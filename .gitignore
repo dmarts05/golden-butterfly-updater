@@ -162,10 +162,10 @@ cython_debug/
 #.idea/
 
 # Logs
-winamax_farmer*.log
-
-# Telegram session
-winamax_farmer.session*
+*.log
 
 # Config
 config.yml
+
+# Credentials
+credentials.json

@@ -21,4 +21,4 @@ class BankScraper(ABC):
 
         :return: List of assets.
         """
-        ...
+        pass

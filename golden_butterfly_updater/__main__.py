@@ -4,6 +4,9 @@ from loguru import logger
 
 from golden_butterfly_updater.browser.browser_manager import BrowserManager
 from golden_butterfly_updater.config import load_config_from_yaml
+from golden_butterfly_updater.portfolio_updater.google_portfolio_updater import (
+    GooglePortfolioUpdater,
+)
 from golden_butterfly_updater.scraper.asset import Asset
 from golden_butterfly_updater.scraper.bank_scraper import BankScraper
 from golden_butterfly_updater.scraper.my_investor_bank_scraper import (
@@ -58,7 +61,21 @@ async def run() -> None:
     logger.info(f"Total assets retrieved: {len(assets)}")
     logger.debug(assets)
 
-    # TODO
+    logger.info("Updating spreadsheet...")
+
+    sheets_updater = GooglePortfolioUpdater(
+        credentials_path=config.google_sheets_config.credentials_path,
+        sheet_name=config.google_sheets_config.sheet_name,
+    )
+    try:
+        sheets_updater.update_portfolio(assets)
+    except Exception as e:
+        logger.exception(f"Error while updating spreadsheet: {e}")
+        return
+
+    logger.info("Spreadsheet update completed.")
+
+    logger.info("Golden Butterfly Updater finished.")
 
 
 def main() -> None:

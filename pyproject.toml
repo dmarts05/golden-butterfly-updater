@@ -5,6 +5,7 @@ description = "A Telegram bot for updating a Golden Butterfly sheet with the cur
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
+    "gspread>=6.2.1",
     "loguru>=0.7.3",
     "pyvirtualdisplay>=3.0",
     "pyyaml>=6.0.2",
