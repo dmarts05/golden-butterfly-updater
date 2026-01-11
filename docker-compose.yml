@@ -1,0 +1,8 @@
+services:
+    golden-butterfly-updater:
+        build: .
+        stdin_open: true
+        tty: true
+        volumes:
+            - ./config.yml:/app/config.yml:ro
+            - ./credentials.json:/app/credentials.json:ro

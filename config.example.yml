@@ -2,6 +2,7 @@
 browser_options:
     # Run the browser in headless (true) or headed (false) mode.
     # Headless mode requires xvfb to be installed.
+    # Headless must be used if using the Docker container.
     headless: true
     # Delay profile. Choose between fast, medium, and slow.
     delay_profile: "fast"
@@ -43,7 +44,7 @@ my_investor:
 
 # --- Google Sheets configuration ---
 google_sheets:
-  # Path to the JSON key file downloaded from Google Cloud Console
-  credentials_path: "credentials.json"
-  # The exact name of the file in Google Drive
-  sheet_name: "Finances"
+    # Path to the JSON key file downloaded from Google Cloud Console
+    credentials_path: "credentials.json"
+    # The exact name of the file in Google Drive
+    sheet_name: "Finances"

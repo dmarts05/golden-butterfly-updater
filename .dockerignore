@@ -39,8 +39,6 @@ var/
 *.egg
 
 # PyInstaller
-#  Usually these files are written by a python script from a template
-#  before PyInstaller builds the exe, so as to inject date/other infos into it.
 *.manifest
 *.spec
 
@@ -59,9 +57,6 @@ coverage.xml
 # Translations
 *.mo
 *.pot
-
-# Django stuff:
-*.log
 
 # Sphinx documentation
 docs/_build/
@@ -90,5 +85,7 @@ venv/
 # Logs
 *.log
 
-# Config
+# Config and Secrets
 config.example.yml
+config.yml
+credentials.json
