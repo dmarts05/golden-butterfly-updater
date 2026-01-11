@@ -36,6 +36,27 @@ class BrowserConfig:
 
 
 @dataclass(slots=True, frozen=True, kw_only=True)
+class GoogleSheetsConfig:
+    """
+    Holds Google Sheets connection configuration.
+    """
+
+    credentials_path: str
+    """Path to the service account JSON key file."""
+    sheet_name: str
+    """Name of the Google Sheet file to update."""
+
+    def __post_init__(self):
+        """
+        Validates that the parameters are not empty.
+        """
+        if not self.credentials_path:
+            raise ValueError("Google Sheets credentials path cannot be empty.")
+        if not self.sheet_name:
+            raise ValueError("Google Sheets name cannot be empty.")
+
+
+@dataclass(slots=True, frozen=True, kw_only=True)
 class TradeRepublicAccountConfig:
     """
     Holds Trade Republic account configuration.
@@ -63,7 +84,6 @@ class TradeRepublicAccountConfig:
                 f"Invalid phone number '{self.phone_number}'. Must be 5-15 digits."
             )
 
-        # Validate the raw secret value
         if not PIN_PATTERN.match(self.pin.get_secret_value()):
             raise ValueError("Invalid PIN. Must be exactly 4 digits.")
 
@@ -123,6 +143,8 @@ class Config:
 
     browser_config: BrowserConfig
     """Browser configuration."""
+    google_sheets_config: GoogleSheetsConfig
+    """Google Sheets configuration (Mandatory)."""
     trade_republic_config: TradeRepublicAccountConfig | None
     """Trade Republic account configuration."""
     my_investor_config: MyInvestorAccountConfig | None
@@ -166,6 +188,30 @@ def _get_browser_config(browser_data: dict[str, Any] | None) -> BrowserConfig:
         raise ValueError(f"Missing required field in 'browser_options': {e}")
     except ValueError as e:
         raise ValueError(f"Invalid value in 'browser_options': {e}")
+
+
+def _get_google_sheets_config(
+    gs_data: dict[str, Any] | None,
+) -> GoogleSheetsConfig:
+    """
+    Parses and validates the Google Sheets configuration section.
+    Mandatory: Raises ValueError if missing.
+
+    :param gs_data: Raw dictionary containing Google Sheets options.
+    :return: Validated GoogleSheetsConfig object.
+    """
+    if not gs_data:
+        raise ValueError("Missing 'google_sheets' section in configuration.")
+
+    try:
+        return GoogleSheetsConfig(
+            credentials_path=str(gs_data["credentials_path"]),
+            sheet_name=str(gs_data["sheet_name"]),
+        )
+    except KeyError as e:
+        raise ValueError(f"Missing required field in 'google_sheets': {e}")
+    except ValueError as e:
+        raise ValueError(f"Validation failed for 'google_sheets': {e}")
 
 
 def _get_trade_republic_config(
@@ -250,11 +296,13 @@ def load_config_from_yaml(file_path: str = "config.yml") -> Config:
     raw_config = _load_yaml(file_path)
 
     browser_config = _get_browser_config(raw_config.get("browser_options"))
+    google_sheets_config = _get_google_sheets_config(raw_config.get("google_sheets"))
     trade_republic_config = _get_trade_republic_config(raw_config.get("trade_republic"))
     my_investor_config = _get_my_investor_config(raw_config.get("my_investor"))
 
     return Config(
         browser_config=browser_config,
+        google_sheets_config=google_sheets_config,
         trade_republic_config=trade_republic_config,
         my_investor_config=my_investor_config,
     )

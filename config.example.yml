@@ -40,3 +40,10 @@ my_investor:
         - isin: "IE00B579F325"
           product_type: "etf"
           asset_type: "gold"
+
+# --- Google Sheets configuration ---
+google_sheets:
+  # Path to the JSON key file downloaded from Google Cloud Console
+  credentials_path: "credentials.json"
+  # The exact name of the file in Google Drive
+  sheet_name: "Finances"
