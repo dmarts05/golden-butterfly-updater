@@ -179,31 +179,59 @@ class MyInvestorBankScraper(BankScraper):
         etfs = [a for a in self._account.assets if a.product_type == ProductType.ETF]
 
         if index_funds:
-            index_assets = await self._retrieve_index_fund_assets(index_funds)
+            index_assets = await self._retrieve_investment_type(
+                configs=index_funds,
+                section_link_selector="a[href^='/app/products/investments/funds/']",
+                item_selector='a[href*="/products/investments/funds/"]:not([href*="security-account"])',
+                section_name="Index Funds",
+            )
             assets.extend(index_assets)
 
         if etfs:
-            etf_assets = await self._retrieve_etf_assets(etfs)
+            etf_assets = await self._retrieve_investment_type(
+                configs=etfs,
+                section_link_selector="a[href^='/app/products/investments/broker/']",
+                item_selector='a[href*="/products/investments/broker/"]:not([href*="security-account"])',
+                section_name="ETFs",
+            )
             assets.extend(etf_assets)
 
         return assets
 
-    async def _retrieve_index_fund_assets(
-        self, index_funds: list[TrackedAssetConfig]
+    async def _retrieve_investment_type(
+        self,
+        configs: list[TrackedAssetConfig],
+        section_link_selector: str,
+        item_selector: str,
+        section_name: str,
     ) -> list[Asset]:
         """
-        Retrieves Index Fund assets based on the provided configuration.
-        :param index_funds: List of TrackedAssetConfig for Index Funds.
+        Generic method to retrieve assets of a specific type (Funds or ETFs).
+        :param configs: List of TrackedAssetConfig for this type.
+        :param section_link_selector: CSS selector to click into the section.
+        :param item_selector: CSS selector to find the individual asset items.
+        :param section_name: Name of the section for logging.
         :return: List of retrieved Asset objects.
         """
         page = await self._browser_manager.navigate_to(
             "https://newapp.myinvestor.es/app/products"
         )
-        await self._navigate_to_index_funds_section(page)
 
-        fund_elements = await self._get_index_fund_elements(page)
+        section_anchor = await self._browser_manager.find_element(
+            page,
+            section_link_selector,
+            f"{section_name} section link not found",
+        )
+        await self._browser_manager.click_element(section_anchor)
+
+        elements = await self._browser_manager.find_all_elements(
+            page,
+            item_selector,
+            f"No elements found in {section_name}",
+        )
+
         found_assets: list[Asset] = []
-        for element in fund_elements:
+        for element in elements:
             href = element.get("href")
             if not href:
                 continue
@@ -213,135 +241,50 @@ class MyInvestorBankScraper(BankScraper):
                 continue
 
             isin = isin_match.group()
-            config = next((c for c in index_funds if c.isin == isin), None)
+            config = next((c for c in configs if c.isin == isin), None)
             if not config:
                 continue
 
-            try:
-                amount_element = await element.query_selector(
-                    "span[data-private='true']"
-                )
-
-                if not amount_element:
-                    logger.warning(f"Could not find amount for tracked ISIN {isin}")
-                    continue
-
-                amount_text = amount_element.text
-                amount = self._parse_currency(amount_text)
-
-                name_element = await element.query_selector("div > span > div > span")
-                name = (
-                    name_element.text.strip() if name_element else f"Index Fund {isin}"
-                )
-
-                asset = Asset(name=name, amount=amount, asset_type=config.asset_type)
+            asset = await self._parse_investment_element(element, config, isin)
+            if asset:
                 found_assets.append(asset)
-                logger.debug(f"Found asset: {asset.name} ({isin}) = {asset.amount}")
-
-            except Exception as e:
-                logger.error(f"Error extracting data for ISIN {isin}: {e}")
 
         return found_assets
 
-    async def _navigate_to_index_funds_section(self, page) -> None:
+    async def _parse_investment_element(
+        self, element: Element, config: TrackedAssetConfig, isin: str
+    ) -> Asset | None:
         """
-        Navigates to the Index Funds section of the MyInvestor platform.
-        :param page: Current browser page.
+        Extracts asset details from a specific DOM element.
+        :param element: The DOM element representing the asset row/card.
+        :param config: The configuration object for this asset.
+        :param isin: The ISIN identifier.
+        :return: Asset object if successful, None otherwise.
         """
-        index_funds_anchor = await self._browser_manager.find_element(
-            page,
-            "a[href^='/app/products/investments/funds/']",
-            "Index Funds section link not found",
-        )
-        await self._browser_manager.click_element(index_funds_anchor)
+        try:
+            amount_element = await element.query_selector("span[data-private='true']")
 
-    async def _get_index_fund_elements(self, page) -> list[Element]:
-        """
-        Retrieves all index fund elements from the investments page.
-        :param page: Current browser page.
-        :return: List of index fund elements.
-        """
-        index_fund_elements = await self._browser_manager.find_all_elements(
-            page,
-            'a[href*="/products/investments/funds/"]:not([href*="security-account"])',
-            "No index fund elements found",
-        )
-        return index_fund_elements
+            if not amount_element:
+                logger.warning(f"Could not find amount for tracked ISIN {isin}")
+                return None
 
-    async def _retrieve_etf_assets(self, etfs: list[TrackedAssetConfig]) -> list[Asset]:
-        """
-        Retrieves ETF assets based on the provided configuration.
-        :param etfs: List of TrackedAssetConfig for ETFs.
-        :return: List of retrieved Asset objects.
-        """
-        page = await self._browser_manager.navigate_to(
-            "https://newapp.myinvestor.es/app/products"
-        )
-        await self._navigate_to_etfs_section(page)
+            amount_text = amount_element.text
+            amount = self._parse_currency(amount_text)
 
-        etf_elements = await self._get_etf_elements(page)
-        found_assets: list[Asset] = []
-        for element in etf_elements:
-            href = element.get("href")
-            if not href:
-                continue
+            name_element = await element.query_selector("div > span > div > span")
+            name = (
+                name_element.text.strip()
+                if name_element
+                else f"{config.product_type} {isin}"
+            )
 
-            isin_match = ISIN_PATTERN.search(href)
-            if not isin_match:
-                continue
-            isin = isin_match.group()
-            config = next((c for c in etfs if c.isin == isin), None)
-            if not config:
-                continue
+            asset = Asset(name=name, amount=amount, asset_type=config.asset_type)
+            logger.debug(f"Found asset: {asset.name} ({isin}) = {asset.amount}")
+            return asset
 
-            try:
-                amount_element = await element.query_selector(
-                    "span[data-private='true']"
-                )
-
-                if not amount_element:
-                    logger.warning(f"Could not find amount for tracked ISIN {isin}")
-                    continue
-
-                amount_text = amount_element.text
-                amount = self._parse_currency(amount_text)
-
-                name_element = await element.query_selector("div > span > div > span")
-                name = name_element.text.strip() if name_element else f"ETF {isin}"
-
-                asset = Asset(name=name, amount=amount, asset_type=config.asset_type)
-                found_assets.append(asset)
-                logger.debug(f"Found asset: {asset.name} ({isin}) = {asset.amount}")
-
-            except Exception as e:
-                logger.error(f"Error extracting data for ISIN {isin}: {e}")
-
-        return found_assets
-
-    async def _navigate_to_etfs_section(self, page) -> None:
-        """
-        Navigates to the ETFs section of the MyInvestor platform.
-        :param page: Current browser page.
-        """
-        etfs_anchor = await self._browser_manager.find_element(
-            page,
-            "a[href^='/app/products/investments/broker/']",
-            "ETFs section link not found",
-        )
-        await self._browser_manager.click_element(etfs_anchor)
-
-    async def _get_etf_elements(self, page) -> list[Element]:
-        """
-        Retrieves all ETF elements from the investments page.
-        :param page: Current browser page.
-        :return: List of ETF elements.
-        """
-        etf_elements = await self._browser_manager.find_all_elements(
-            page,
-            'a[href*="/products/investments/broker/"]:not([href*="security-account"])',
-            "No ETF elements found",
-        )
-        return etf_elements
+        except Exception as e:
+            logger.error(f"Error extracting data for ISIN {isin}: {e}")
+            return None
 
     @staticmethod
     def _parse_currency(text: str) -> float:
