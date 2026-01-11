@@ -9,6 +9,9 @@ from golden_butterfly_updater.scraper.bank_scraper import BankScraper
 from golden_butterfly_updater.scraper.my_investor_bank_scraper import (
     MyInvestorBankScraper,
 )
+from golden_butterfly_updater.scraper.trade_republic_bank_scraper import (
+    TradeRepublicBankScraper,
+)
 
 
 async def run() -> None:
@@ -29,13 +32,13 @@ async def run() -> None:
         use_virtual_display=config.browser_config.headless,
     ) as browser_manager:
         scrapers: list[BankScraper] = []
-        # if config.trade_republic_config is not None:
-        #     scrapers.append(
-        #         TradeRepublicBankScraper(
-        #             browser_manager=browser_manager,
-        #             account=config.trade_republic_config,
-        #         )
-        #     )
+        if config.trade_republic_config is not None:
+            scrapers.append(
+                TradeRepublicBankScraper(
+                    browser_manager=browser_manager,
+                    account=config.trade_republic_config,
+                )
+            )
         if config.my_investor_config is not None:
             scrapers.append(
                 MyInvestorBankScraper(

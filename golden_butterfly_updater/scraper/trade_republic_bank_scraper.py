@@ -186,6 +186,7 @@ class TradeRepublicBankScraper(BankScraper):
         balance_value = float(
             balance_element.text.replace("€", "").replace(",", "").strip()
         )
+        logger.debug(f"Found cash balance: {balance_value}")
         return Asset(
             name="Trade Republic Cash", amount=balance_value, asset_type=AssetType.CASH
         )

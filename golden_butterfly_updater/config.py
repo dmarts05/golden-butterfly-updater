@@ -1,37 +1,17 @@
-import re
 from dataclasses import dataclass
 from typing import Any
 
 import yaml
 
 from golden_butterfly_updater.browser.delays import DelayProfile, Delays
+from golden_butterfly_updater.regex import (
+    ISIN_PATTERN,
+    PHONE_COUNTRY_CODE_PATTERN,
+    PHONE_NUMBER_PATTERN,
+    PIN_PATTERN,
+)
 from golden_butterfly_updater.scraper.asset import AssetType, ProductType
-
-# Regex patterns for validation
-PHONE_COUNTRY_CODE_PATTERN = re.compile(r"^\+\d{1,4}$")
-PHONE_NUMBER_PATTERN = re.compile(r"^\d{5,15}$")
-PIN_PATTERN = re.compile(r"^\d{4}$")
-
-
-class SecretStr:
-    """
-    Wrapper for sensitive strings to prevent accidental logging or printing.
-    """
-
-    def __init__(self, value: str):
-        self._value = value
-
-    def __repr__(self) -> str:
-        return "**********"
-
-    def __str__(self) -> str:
-        return "**********"
-
-    def get_secret_value(self) -> str:
-        """
-        Returns the actual secret value.
-        """
-        return self._value
+from golden_butterfly_updater.types import SecretStr
 
 
 @dataclass(slots=True, frozen=True, kw_only=True)
@@ -100,6 +80,16 @@ class TrackedAssetConfig:
     """The type of product (ETF or Index Fund)."""
     asset_type: AssetType
     """The category of the asset (Gold, Treasury, etc.)."""
+
+    def __post_init__(self):
+        """
+        Validates the ISIN format.
+        """
+
+        if not ISIN_PATTERN.match(self.isin):
+            raise ValueError(
+                f"Invalid ISIN '{self.isin}'. Must match standard ISIN format."
+            )
 
 
 @dataclass(slots=True, frozen=True, kw_only=True)
