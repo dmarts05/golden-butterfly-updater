@@ -2,6 +2,15 @@ from dataclasses import dataclass
 from enum import Enum
 
 
+class ProductType(Enum):
+    """
+    Enumeration of financial product types.
+    """
+
+    ETF = "etf"
+    INDEX_FUND = "index_fund"
+
+
 class AssetType(Enum):
     """
     Enumeration of financial asset types matching the portfolio structure.

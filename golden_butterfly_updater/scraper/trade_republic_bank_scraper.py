@@ -36,16 +36,10 @@ class TradeRepublicBankScraper(BankScraper):
             logger.info("Logged in successfully")
 
             logger.info("Retrieving cash balance...")
-            cash_balance = await self._get_cash_balance()
-            logger.info(f"Cash balance retrieved: {cash_balance}€")
+            cash_asset = await self._retrieve_cash_balance()
+            logger.info("Cash balance retrieved.")
 
-            return [
-                Asset(
-                    name="Trade Republic Cash",
-                    amount=cash_balance,
-                    asset_type=AssetType.CASH,
-                )
-            ]
+            return [cash_asset]
 
         except LoginError as e:
             logger.error(f"Login failed: {e}")
@@ -137,7 +131,7 @@ class TradeRepublicBankScraper(BankScraper):
         Since the PIN is a 4-digit code, we need to enter each digit separately in its own input field.
         :param page: Current browser page.
         """
-        for digit in self._account.pin:
+        for digit in self._account.pin.get_secret_value():
             pin_input = await self._browser_manager.find_element(
                 page,
                 ".codeInput__character:not(.-withValue)",
@@ -175,19 +169,24 @@ class TradeRepublicBankScraper(BankScraper):
         except ElementNotFoundError:
             raise LoginError("Login verification failed; user may not be logged in.")
 
-    async def _get_cash_balance(self) -> float:
+    async def _retrieve_cash_balance(self) -> Asset:
         """
         Retrieves the cash balance from the account overview.
-        :return: Cash balance as a float.
+        :return: Cash balance as an Asset.
         """
-        transactions_page = await self._browser_manager.navigate_to(
+        page = await self._browser_manager.navigate_to(
             "https://app.traderepublic.com/profile/transactions"
         )
 
-        cash_element = await self._browser_manager.find_element(
-            transactions_page,
+        balance_element = await self._browser_manager.find_element(
+            page,
             ".cashBalance__amount",
             "Cash balance element not found",
         )
-        cash_amount = float(cash_element.text.replace("€", "").replace(",", "").strip())
-        return cash_amount
+        balance_value = float(
+            balance_element.text.replace("€", "").replace(",", "").strip()
+        )
+        logger.debug(f"Found cash balance: {balance_value}")
+        return Asset(
+            name="Trade Republic Cash", amount=balance_value, asset_type=AssetType.CASH
+        )
